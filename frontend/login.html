@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign In — Arcanum</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body data-page="login">
+
+    <!-- ═══ NAVBAR ═══ -->
+    <nav class="navbar">
+        <div class="container">
+            <a href="index.html" class="logo">ARCANUM</a>
+            <div class="nav-links">
+                <a href="index.html">Home</a>
+                <a href="books.html">Catalog</a>
+                <a href="login.html">Sign In</a>
+            </div>
+            <button class="nav-toggle" aria-label="Toggle navigation">
+                <span></span><span></span><span></span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- ═══ AUTH FORM ═══ -->
+    <main class="auth-page">
+        <div class="auth-card">
+            <div style="text-align:center; margin-bottom: 2rem;">
+                <a href="index.html" class="logo" style="font-size: 1.3rem;">ARCANUM</a>
+            </div>
+            <h1>Welcome Back</h1>
+            <p class="auth-sub">Sign in to access your digital library</p>
+
+            <div id="login-error" style="display:none; background:#8B2E2E11; color:#8B2E2E; padding:0.7rem 1rem; margin-bottom:1rem; font-size:0.85rem; border:1px solid #8B2E2E22;"></div>
+
+            <form id="login-form">
+                <div class="form-group">
+                    <label for="login-email">Email Address</label>
+                    <input type="email" id="login-email" placeholder="you@university.edu" required>
+                </div>
+                <div class="form-group">
+                    <label for="login-password">Password</label>
+                    <input type="password" id="login-password" placeholder="Enter your password" required>
+                </div>
+                <button type="submit" class="btn btn-primary auth-submit" id="login-btn">Sign In</button>
+            </form>
+
+            <p class="auth-footer">
+                Don't have an account? <a href="register.html">Create one</a>
+            </p>
+
+            <div style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--border); text-align: center;">
+                <a href="admin/login.html" style="font-size: 0.75rem; color: var(--ink-faint); text-transform: uppercase; letter-spacing: 1.5px;">Admin Portal →</a>
+            </div>
+        </div>
+    </main>
+
+    <script src="js/main.js"></script>
+    <script>
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const errorEl = document.getElementById('login-error');
+            const btn = document.getElementById('login-btn');
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+
+            errorEl.style.display = 'none';
+            btn.textContent = 'Signing in...';
+            btn.disabled = true;
+
+            try {
+                const res = await fetch(API_BASE + '/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const text = await res.text();
+                let data;
+                try {
+                    data = text ? JSON.parse(text) : {};
+                } catch (parseErr) {
+                    throw new Error('Server returned invalid response. Please try again.');
+                }
+
+                if (!res.ok) {
+                    throw new Error(data.error || `Login failed (HTTP ${res.status})`);
+                }
+
+                localStorage.setItem('arcanum_token', data.token);
+                localStorage.setItem('arcanum_user', JSON.stringify(data.user));
+
+                showToast('Signed in successfully');
+                setTimeout(() => window.location.href = 'library.html', 800);
+            } catch (err) {
+                errorEl.textContent = err.message;
+                errorEl.style.display = 'block';
+                btn.textContent = 'Sign In';
+                btn.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>

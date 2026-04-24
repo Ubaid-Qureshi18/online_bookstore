@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Book Details — Arcanum</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body data-page="detail">
+
+    <!-- ═══ NAVBAR ═══ -->
+    <nav class="navbar">
+        <div class="container">
+            <a href="index.html" class="logo">ARCANUM</a>
+            <div class="nav-links">
+                <a href="index.html">Home</a>
+                <a href="books.html">Catalog</a>
+                <a href="login.html">Sign In</a>
+                <span class="nav-divider"></span>
+                <button class="cart-trigger" id="cart-trigger">
+                    <svg viewBox="0 0 24 24"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
+                    Cart
+                    <span class="cart-badge">0</span>
+                </button>
+            </div>
+            <button class="nav-toggle" aria-label="Toggle navigation">
+                <span></span><span></span><span></span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- ═══ DETAIL CONTENT ═══ -->
+    <section class="section" id="detail-content">
+        <div class="container">
+            <p style="text-align:center; padding: 4rem 0; color: var(--ink-faint);">Loading...</p>
+        </div>
+    </section>
+
+    <!-- ═══ FOOTER ═══ -->
+    <footer>
+        <div class="container">
+            <div class="footer-bottom" style="border:none; padding-top: 0;">
+                <p>&copy; 2026 Arcanum Rare Books. All rights reserved.</p>
+                <p><a href="books.html" style="color: var(--gold);">← Back to Catalog</a></p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- ═══ CART SIDEBAR ═══ -->
+    <div class="cart-overlay" id="cart-overlay"></div>
+    <div class="cart-sidebar" id="cart-sidebar">
+        <div class="cart-top">
+            <h2>Your Selection</h2>
+            <button class="cart-close" id="cart-close">&times;</button>
+        </div>
+        <div class="cart-body" id="cart-body"></div>
+        <div class="cart-bottom">
+            <div class="cart-summary-row">
+                <span>Items</span>
+                <span class="cart-badge">0</span>
+            </div>
+            <div class="cart-summary-row total">
+                <span>Total</span>
+                <span id="cart-total">₹0</span>
+            </div>
+            <button class="btn btn-primary cart-checkout-btn" onclick="window.location.href='login.html'">Proceed to Checkout</button>
+        </div>
+    </div>
+
+    <script src="js/main.js"></script>
+</body>
+</html>

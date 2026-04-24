@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Browse the complete Arcanum catalog — rare manuscripts, ancient texts, and scholarly works available for digital access.">
+    <title>Catalog — Arcanum Rare Books</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body data-page="catalog">
+
+    <!-- ═══ NAVBAR ═══ -->
+    <nav class="navbar">
+        <div class="container">
+            <a href="index.html" class="logo">ARCANUM</a>
+            <div class="nav-links">
+                <a href="index.html">Home</a>
+                <a href="books.html">Catalog</a>
+                <a href="login.html">Sign In</a>
+                <span class="nav-divider"></span>
+                <button class="cart-trigger" id="cart-trigger">
+                    <svg viewBox="0 0 24 24"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
+                    Cart
+                    <span class="cart-badge">0</span>
+                </button>
+            </div>
+            <button class="nav-toggle" aria-label="Toggle navigation">
+                <span></span><span></span><span></span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- ═══ PAGE HEADER ═══ -->
+    <header class="catalog-hero">
+        <div class="container">
+            <h1>The Catalog</h1>
+            <p>Explore the complete archive of rare and ancient texts.</p>
+            <div class="search-bar" style="max-width:500px;margin:1.5rem auto 0;">
+                <input type="text" id="catalog-search" placeholder="Search by title, author, or keyword..." style="width:100%;padding:0.8rem 1.2rem;font-size:0.9rem;font-family:var(--font-body);border:1px solid var(--border);background:var(--ivory);color:var(--ink);outline:none;">
+            </div>
+        </div>
+    </header>
+
+    <!-- ═══ FILTERS ═══ -->
+    <div class="filters-bar">
+        <div class="container">
+            <div class="filters-wrap" id="filter-pills">
+                <button class="filter-pill active" data-filter="all">All Volumes</button>
+                <!-- Dynamic pills loaded by JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ CATALOG GRID ═══ -->
+    <section class="section" style="padding-top: 1.5rem;">
+        <div class="container">
+            <p class="results-count" id="results-count"></p>
+            <div class="book-grid" id="catalog-books" style="margin-top: 1.5rem;">
+                <div style="text-align:center;padding:4rem;color:var(--ink-faint);grid-column:1/-1;">Loading catalog...</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══ FOOTER ═══ -->
+    <footer>
+        <div class="container">
+            <div class="footer-grid">
+                <div class="footer-brand">
+                    <a href="index.html" class="logo">ARCANUM</a>
+                    <p>A digital sanctuary for the world's rarest manuscripts and scholarly texts.</p>
+                </div>
+                <div class="footer-col">
+                    <h4>Archive</h4>
+                    <a href="books.html">Full Catalog</a>
+                    <a href="books.html?category=occult-manuscripts">Occult Manuscripts</a>
+                    <a href="books.html?category=archaeological-texts">Archaeological Texts</a>
+                </div>
+                <div class="footer-col">
+                    <h4>Collections</h4>
+                    <a href="books.html?category=forbidden-sciences">Forbidden Sciences</a>
+                    <a href="books.html?category=ancient-civilizations">Ancient Civilizations</a>
+                    <a href="books.html?category=medical-healing-arts">Healing Arts</a>
+                </div>
+                <div class="footer-col">
+                    <h4>Account</h4>
+                    <a href="login.html">Sign In</a>
+                    <a href="register.html">Create Account</a>
+                    <a href="library.html">My Library</a>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2026 Arcanum Rare Books. All rights reserved.</p>
+                <p>Crafted for scholars, by scholars.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- ═══ CART SIDEBAR ═══ -->
+    <div class="cart-overlay" id="cart-overlay"></div>
+    <div class="cart-sidebar" id="cart-sidebar">
+        <div class="cart-top">
+            <h2>Your Selection</h2>
+            <button class="cart-close" id="cart-close">&times;</button>
+        </div>
+        <div class="cart-body" id="cart-body"></div>
+        <div class="cart-bottom">
+            <div class="cart-summary-row">
+                <span>Items</span>
+                <span class="cart-badge">0</span>
+            </div>
+            <div class="cart-summary-row total">
+                <span>Total</span>
+                <span id="cart-total">₹0</span>
+            </div>
+            <button class="btn btn-primary cart-checkout-btn">Proceed to Checkout</button>
+        </div>
+    </div>
+
+    <script src="js/main.js"></script>
+    <script>
+        // Load dynamic category filter pills
+        (async () => {
+            try {
+                const data = await apiFetch('/books/categories');
+                const pillsWrap = document.getElementById('filter-pills');
+                if (data.categories && pillsWrap) {
+                    const pills = data.categories.map(c =>
+                        `<button class="filter-pill" data-filter="${c.slug}">${c.name}</button>`
+                    ).join('');
+                    pillsWrap.innerHTML = '<button class="filter-pill active" data-filter="all">All Volumes</button>' + pills;
+
+                    // Re-bind filter click events and check URL preset
+                    const params = new URLSearchParams(window.location.search);
+                    const preset = params.get('category');
+                    if (preset) {
+                        pillsWrap.querySelectorAll('.filter-pill').forEach(p => {
+                            p.classList.remove('active');
+                            if (p.dataset.filter === preset) p.classList.add('active');
+                        });
+                    }
+
+                    // Rebind clicks since initCatalog already ran
+                    pillsWrap.querySelectorAll('.filter-pill').forEach(pill => {
+                        pill.addEventListener('click', () => {
+                            pillsWrap.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
+                            pill.classList.add('active');
+                            const filter = pill.dataset.filter;
+
+                            // Manually trigger catalog render
+                            const grid = document.getElementById('catalog-books');
+                            const resultsCount = document.getElementById('results-count');
+                            const searchInput = document.getElementById('catalog-search');
+                            const searchTerm = searchInput ? searchInput.value.trim() : '';
+
+                            (async () => {
+                                let url = '/books?';
+                                if (filter && filter !== 'all') url += `category=${filter}&`;
+                                if (searchTerm) url += `search=${searchTerm}&`;
+                                try {
+                                    const bookData = await apiFetch(url);
+                                    window._booksCache = bookData.books;
+                                    grid.innerHTML = bookData.books.length > 0
+                                        ? bookData.books.map(renderBookCard).join('')
+                                        : '<div style="text-align:center;padding:4rem;color:var(--ink-muted);grid-column:1/-1;">No books found.</div>';
+                                    if (resultsCount) resultsCount.textContent = `Showing ${bookData.books.length} volumes`;
+                                } catch(e) {
+                                    grid.innerHTML = '<div style="text-align:center;padding:4rem;color:var(--ink-muted);grid-column:1/-1;">Failed to load.</div>';
+                                }
+                            })();
+                        });
+                    });
+                }
+            } catch (err) {
+                console.error('Failed to load category pills:', err);
+            }
+        })();
+    </script>
+</body>
+</html>

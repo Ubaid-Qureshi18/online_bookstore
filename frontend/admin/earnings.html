@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Earnings — Arcanum Admin</title>
+    <link rel="stylesheet" href="../css/admin.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+    <div class="admin-layout">
+        <div id="sidebar"></div>
+        <div class="admin-main">
+            <div class="admin-topbar">
+                <div>
+                    <h1>Earnings</h1>
+                    <span class="breadcrumb">Admin / Analytics / Earnings</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:1rem;">
+                    <div class="stat-value" id="total-earnings" style="font-size:1.4rem;margin:0;">—</div>
+                    <span style="font-size:0.72rem;color:#8B8F9A;text-transform:uppercase;letter-spacing:1px;">Total Revenue</span>
+                </div>
+            </div>
+            <div class="admin-content">
+
+                <!-- Charts Row -->
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; margin-bottom:1.5rem;">
+                    <div class="panel">
+                        <div class="panel-header">
+                            <h2>Monthly Revenue</h2>
+                        </div>
+                        <div class="panel-body">
+                            <div class="chart-container">
+                                <canvas id="monthly-chart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="panel">
+                        <div class="panel-header">
+                            <h2>Revenue by Category</h2>
+                        </div>
+                        <div class="panel-body">
+                            <div class="chart-container">
+                                <canvas id="category-chart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Per-Book Earnings Table -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <h2>Per-Book Earnings</h2>
+                    </div>
+                    <div class="panel-body" style="padding:0;overflow-x:auto;">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Book</th>
+                                    <th>Price</th>
+                                    <th>Copies Sold</th>
+                                    <th>Total Earnings</th>
+                                    <th>Revenue Share</th>
+                                </tr>
+                            </thead>
+                            <tbody id="book-earnings-body">
+                                <tr><td colspan="5" style="text-align:center;padding:2rem;color:#8B8F9A;">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/admin.js"></script>
+    <script>
+        checkAdminAuth();
+        document.getElementById('sidebar').innerHTML = renderSidebar('earnings');
+
+        const CHART_COLORS = ['#8B5CF6', '#3B82F6', '#EF4444', '#B8963E', '#10B981', '#F59E0B', '#EC4899', '#6366F1'];
+
+        (async () => {
+            try {
+                const data = await adminFetch('/admin/earnings');
+
+                document.getElementById('total-earnings').textContent = formatINR(data.totalEarnings);
+
+                // Monthly Revenue Chart
+                const monthlyCtx = document.getElementById('monthly-chart').getContext('2d');
+                const monthly = data.monthlyEarnings.length > 0 ? data.monthlyEarnings : [{ month_label: 'No Data', earnings: 0 }];
+
+                new Chart(monthlyCtx, {
+                    type: 'line',
+                    data: {
+                        labels: monthly.map(d => d.month_label),
+                        datasets: [{
+                            label: 'Revenue (₹)',
+                            data: monthly.map(d => parseFloat(d.earnings)),
+                            borderColor: '#B8963E',
+                            backgroundColor: 'rgba(184, 150, 62, 0.1)',
+                            borderWidth: 2,
+                            fill: true,
+                            tension: 0.4,
+                            pointBackgroundColor: '#B8963E',
+                            pointRadius: 4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: { callbacks: { label: ctx => formatINR(ctx.raw) } }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                grid: { color: '#F0F1F3' },
+                                ticks: { callback: v => '₹' + (v/1000) + 'k', font: { size: 11 } }
+                            },
+                            x: { grid: { display: false }, ticks: { font: { size: 11 } } }
+                        }
+                    }
+                });
+
+                // Category Pie Chart
+                const catCtx = document.getElementById('category-chart').getContext('2d');
+                const catData = data.categoryEarnings.filter(c => parseFloat(c.earnings) > 0);
+
+                if (catData.length > 0) {
+                    new Chart(catCtx, {
+                        type: 'doughnut',
+                        data: {
+                            labels: catData.map(c => c.name),
+                            datasets: [{
+                                data: catData.map(c => parseFloat(c.earnings)),
+                                backgroundColor: CHART_COLORS.slice(0, catData.length),
+                                borderWidth: 2,
+                                borderColor: '#fff'
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    position: 'bottom',
+                                    labels: { font: { size: 11 }, padding: 15 }
+                                },
+                                tooltip: {
+                                    callbacks: { label: ctx => `${ctx.label}: ${formatINR(ctx.raw)}` }
+                                }
+                            }
+                        }
+                    });
+                } else {
+                    catCtx.canvas.parentElement.innerHTML = '<p style="text-align:center;color:#8B8F9A;padding:4rem;">No category data yet</p>';
+                }
+
+                // Per-book earnings table
+                const tbody = document.getElementById('book-earnings-body');
+                const booksWithSales = data.bookEarnings.filter(b => parseInt(b.sold) > 0);
+
+                if (booksWithSales.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:2rem;color:#8B8F9A;">No sales data yet</td></tr>';
+                } else {
+                    tbody.innerHTML = booksWithSales.map(b => {
+                        const share = data.totalEarnings > 0 ? ((parseFloat(b.earnings) / data.totalEarnings) * 100).toFixed(1) : 0;
+                        return `
+                            <tr>
+                                <td><strong>${b.title}</strong></td>
+                                <td>${formatINR(b.price)}</td>
+                                <td>${b.sold}</td>
+                                <td><strong>${formatINR(b.earnings)}</strong></td>
+                                <td>
+                                    <div style="display:flex;align-items:center;gap:0.5rem;">
+                                        <div style="width:80px;height:6px;background:#F0F1F3;border-radius:3px;overflow:hidden;">
+                                            <div style="width:${share}%;height:100%;background:#B8963E;border-radius:3px;"></div>
+                                        </div>
+                                        <span style="font-size:0.78rem;color:#8B8F9A;">${share}%</span>
+                                    </div>
+                                </td>
+                            </tr>
+                        `;
+                    }).join('');
+                }
+
+            } catch (err) {
+                console.error('Earnings error:', err);
+            }
+        })();
+    </script>
+</body>
+</html>

@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Books — Arcanum Admin</title>
+    <link rel="stylesheet" href="../css/admin.css">
+</head>
+<body>
+    <div class="admin-layout">
+        <div id="sidebar"></div>
+        <div class="admin-main">
+            <div class="admin-topbar">
+                <div>
+                    <h1>Books</h1>
+                    <span class="breadcrumb">Admin / Management / Books</span>
+                </div>
+                <button class="btn-admin btn-admin-primary" onclick="showAddForm()">
+                    <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    Add New Book
+                </button>
+            </div>
+            <div class="admin-content">
+
+                <!-- Add/Edit Book Form (hidden by default) -->
+                <div class="panel" id="book-form-panel" style="display:none;">
+                    <div class="panel-header">
+                        <h2 id="form-title">Add New Book</h2>
+                        <button class="btn-admin" onclick="hideForm()">Cancel</button>
+                    </div>
+                    <div class="panel-body">
+                        <form id="book-form" enctype="multipart/form-data">
+                            <input type="hidden" id="edit-book-id">
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label>Title *</label>
+                                    <input type="text" id="f-title" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Author *</label>
+                                    <input type="text" id="f-author" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Category *</label>
+                                    <select id="f-category" required>
+                                        <option value="">Select category</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Rarity Level</label>
+                                    <select id="f-rarity">
+                                        <option value="Rare">Rare</option>
+                                        <option value="Extremely Rare">Extremely Rare</option>
+                                        <option value="Ultra Rare">Ultra Rare</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Price (₹) *</label>
+                                    <input type="number" id="f-price" min="0" step="100" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Preview Pages</label>
+                                    <input type="number" id="f-preview" value="3" min="1" max="20">
+                                </div>
+                                <div class="form-group">
+                                    <label>Language</label>
+                                    <input type="text" id="f-language" value="English">
+                                </div>
+                                <div class="form-group">
+                                    <label>Year Published</label>
+                                    <input type="number" id="f-year">
+                                </div>
+                                <div class="form-group">
+                                    <label>Origin Region</label>
+                                    <input type="text" id="f-origin">
+                                </div>
+                                <div class="form-group">
+                                    <label>Cover Image</label>
+                                    <input type="file" id="f-cover" accept="image/*">
+                                </div>
+                                <div class="form-group">
+                                    <label>PDF File</label>
+                                    <input type="file" id="f-pdf" accept=".pdf">
+                                </div>
+                                <div class="form-group full-width">
+                                    <label>Description</label>
+                                    <textarea id="f-description" rows="4"></textarea>
+                                </div>
+                            </div>
+                            <div style="margin-top:1rem;display:flex;gap:0.8rem;">
+                                <button type="submit" class="btn-admin btn-admin-primary" id="form-submit-btn">Add Book</button>
+                                <button type="button" class="btn-admin" onclick="hideForm()">Cancel</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Books Table -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <h2>All Books (<span id="book-count">0</span>)</h2>
+                    </div>
+                    <div class="panel-body" style="padding:0;overflow-x:auto;">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Title</th>
+                                    <th>Category</th>
+                                    <th>Rarity</th>
+                                    <th>Price</th>
+                                    <th>Sold</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="books-table-body">
+                                <tr><td colspan="8" style="text-align:center;padding:2rem;color:#8B8F9A;">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/admin.js"></script>
+    <script>
+        checkAdminAuth();
+        document.getElementById('sidebar').innerHTML = renderSidebar('books');
+
+        let allCategories = [];
+
+        async function loadBooks() {
+            try {
+                const data = await adminFetch('/admin/books');
+                allCategories = data.categories;
+
+                // Populate category dropdown
+                const catSelect = document.getElementById('f-category');
+                catSelect.innerHTML = '<option value="">Select category</option>' +
+                    data.categories.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+
+                document.getElementById('book-count').textContent = data.books.length;
+
+                const tbody = document.getElementById('books-table-body');
+                if (data.books.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:2rem;color:#8B8F9A;">No books found. Add your first book!</td></tr>';
+                    return;
+                }
+
+                const rarityBadge = (r) => {
+                    const map = { 'Rare': 'badge-blue', 'Extremely Rare': 'badge-gold', 'Ultra Rare': 'badge-purple' };
+                    return `<span class="badge ${map[r] || 'badge-blue'}">${r}</span>`;
+                };
+
+                tbody.innerHTML = data.books.map(b => `
+                    <tr>
+                        <td>${b.id}</td>
+                        <td><strong>${b.title}</strong><br><span style="font-size:0.78rem;color:#8B8F9A;">${b.author}</span></td>
+                        <td>${b.category_name}</td>
+                        <td>${rarityBadge(b.rarity_level)}</td>
+                        <td>${formatINR(b.price)}</td>
+                        <td>${b.times_sold || 0}</td>
+                        <td>${b.is_active ? '<span class="badge badge-green">Active</span>' : '<span class="badge badge-red">Inactive</span>'}</td>
+                        <td>
+                            <div style="display:flex;gap:0.4rem;">
+                                <button class="btn-admin" onclick="editBook(${b.id})" style="padding:0.3rem 0.6rem;font-size:0.72rem;">Edit</button>
+                                <button class="btn-admin btn-admin-danger" onclick="deleteBook(${b.id}, '${b.title.replace(/'/g, "\\'")}')" style="padding:0.3rem 0.6rem;font-size:0.72rem;">Delete</button>
+                            </div>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (err) {
+                console.error('Load books error:', err);
+            }
+        }
+
+        function showAddForm() {
+            document.getElementById('form-title').textContent = 'Add New Book';
+            document.getElementById('form-submit-btn').textContent = 'Add Book';
+            document.getElementById('edit-book-id').value = '';
+            document.getElementById('book-form').reset();
+            document.getElementById('book-form-panel').style.display = 'block';
+            document.getElementById('book-form-panel').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function hideForm() {
+            document.getElementById('book-form-panel').style.display = 'none';
+        }
+
+        async function editBook(id) {
+            try {
+                const data = await adminFetch('/admin/books');
+                const book = data.books.find(b => b.id === id);
+                if (!book) return;
+
+                document.getElementById('form-title').textContent = 'Edit Book';
+                document.getElementById('form-submit-btn').textContent = 'Update Book';
+                document.getElementById('edit-book-id').value = id;
+                document.getElementById('f-title').value = book.title;
+                document.getElementById('f-author').value = book.author;
+                document.getElementById('f-category').value = book.category_id;
+                document.getElementById('f-rarity').value = book.rarity_level;
+                document.getElementById('f-price').value = book.price;
+                document.getElementById('f-preview').value = book.preview_pages;
+                document.getElementById('f-language').value = book.language;
+                document.getElementById('f-year').value = book.year_published || '';
+                document.getElementById('f-origin').value = book.origin_region || '';
+                document.getElementById('f-description').value = book.description || '';
+
+                document.getElementById('book-form-panel').style.display = 'block';
+                document.getElementById('book-form-panel').scrollIntoView({ behavior: 'smooth' });
+            } catch (err) {
+                alert('Failed to load book details');
+            }
+        }
+
+        async function deleteBook(id, title) {
+            if (!confirm(`Are you sure you want to delete "${title}"?`)) return;
+            try {
+                await adminFetch(`/admin/books/${id}`, { method: 'DELETE' });
+                loadBooks();
+            } catch (err) {
+                alert('Failed to delete book: ' + err.message);
+            }
+        }
+
+        // Form submission
+        document.getElementById('book-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const bookId = document.getElementById('edit-book-id').value;
+            const isEdit = !!bookId;
+
+            const formData = new FormData();
+            formData.append('title', document.getElementById('f-title').value);
+            formData.append('author', document.getElementById('f-author').value);
+            formData.append('category_id', document.getElementById('f-category').value);
+            formData.append('rarity_level', document.getElementById('f-rarity').value);
+            formData.append('price', document.getElementById('f-price').value);
+            formData.append('preview_pages', document.getElementById('f-preview').value);
+            formData.append('language', document.getElementById('f-language').value);
+            formData.append('year_published', document.getElementById('f-year').value);
+            formData.append('origin_region', document.getElementById('f-origin').value);
+            formData.append('description', document.getElementById('f-description').value);
+
+            const coverFile = document.getElementById('f-cover').files[0];
+            const pdfFile = document.getElementById('f-pdf').files[0];
+            if (coverFile) formData.append('cover', coverFile);
+            if (pdfFile) formData.append('pdf', pdfFile);
+
+            try {
+                const url = isEdit ? `/admin/books/${bookId}` : '/admin/books';
+                const method = isEdit ? 'PUT' : 'POST';
+
+                const res = await fetch(API_BASE + url, {
+                    method,
+                    headers: { 'Authorization': `Bearer ${getAdminToken()}` },
+                    body: formData
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error);
+
+                hideForm();
+                loadBooks();
+                alert(isEdit ? 'Book updated!' : 'Book added!');
+            } catch (err) {
+                alert('Error: ' + err.message);
+            }
+        });
+
+        loadBooks();
+    </script>
+</body>
+</html>

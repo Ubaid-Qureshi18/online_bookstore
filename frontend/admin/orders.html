@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Orders — Arcanum Admin</title>
+    <link rel="stylesheet" href="../css/admin.css">
+</head>
+<body>
+    <div class="admin-layout">
+        <div id="sidebar"></div>
+        <div class="admin-main">
+            <div class="admin-topbar">
+                <div>
+                    <h1>Orders</h1>
+                    <span class="breadcrumb">Admin / Management / Orders</span>
+                </div>
+                <button class="btn-admin" onclick="exportOrdersCSV()">
+                    <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    Export CSV
+                </button>
+            </div>
+            <div class="admin-content">
+
+                <!-- Filters -->
+                <div class="panel" style="margin-bottom:1.5rem;">
+                    <div class="panel-body" style="padding:1rem 1.5rem;">
+                        <div style="display:flex;gap:1rem;flex-wrap:wrap;align-items:flex-end;">
+                            <div class="form-group" style="margin:0;flex:1;min-width:140px;">
+                                <label>Status</label>
+                                <select id="filter-status" onchange="loadOrders()">
+                                    <option value="">All</option>
+                                    <option value="completed">Completed</option>
+                                    <option value="pending">Pending</option>
+                                    <option value="failed">Failed</option>
+                                </select>
+                            </div>
+                            <div class="form-group" style="margin:0;flex:1;min-width:140px;">
+                                <label>From Date</label>
+                                <input type="date" id="filter-from" onchange="loadOrders()">
+                            </div>
+                            <div class="form-group" style="margin:0;flex:1;min-width:140px;">
+                                <label>To Date</label>
+                                <input type="date" id="filter-to" onchange="loadOrders()">
+                            </div>
+                            <button class="btn-admin" onclick="clearFilters()" style="height:36px;">Clear</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <div class="panel-header">
+                        <h2>All Orders (<span id="order-count">0</span>)</h2>
+                    </div>
+                    <div class="panel-body" style="padding:0;overflow-x:auto;">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Order ID</th>
+                                    <th>User</th>
+                                    <th>Book</th>
+                                    <th>Amount</th>
+                                    <th>Payment ID</th>
+                                    <th>Status</th>
+                                    <th>Date</th>
+                                </tr>
+                            </thead>
+                            <tbody id="orders-table-body">
+                                <tr><td colspan="7" style="text-align:center;padding:2rem;color:#8B8F9A;">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/admin.js"></script>
+    <script>
+        checkAdminAuth();
+        document.getElementById('sidebar').innerHTML = renderSidebar('orders');
+
+        let ordersData = [];
+
+        async function loadOrders() {
+            try {
+                const status = document.getElementById('filter-status').value;
+                const fromDate = document.getElementById('filter-from').value;
+                const toDate = document.getElementById('filter-to').value;
+
+                let url = '/admin/orders?';
+                if (status) url += `status=${status}&`;
+                if (fromDate) url += `from_date=${fromDate}&`;
+                if (toDate) url += `to_date=${toDate}&`;
+
+                const data = await adminFetch(url);
+                ordersData = data.orders;
+                document.getElementById('order-count').textContent = data.orders.length;
+
+                const tbody = document.getElementById('orders-table-body');
+                if (data.orders.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:2rem;color:#8B8F9A;">No orders found</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = data.orders.map(o => `
+                    <tr>
+                        <td><strong>#${o.id}</strong></td>
+                        <td>
+                            <div class="user-cell">
+                                <div class="avatar">${getInitials(o.user_name)}</div>
+                                <div>
+                                    <strong>${o.user_name}</strong>
+                                    <br><span style="font-size:0.75rem;color:#8B8F9A;">${o.user_email}</span>
+                                </div>
+                            </div>
+                        </td>
+                        <td>${o.book_title}</td>
+                        <td>${formatINR(o.amount_paid)}</td>
+                        <td style="font-size:0.78rem;color:#8B8F9A;">${o.payment_id ? o.payment_id.substring(0, 16) + '...' : '—'}</td>
+                        <td>${getStatusBadge(o.status)}</td>
+                        <td>${new Date(o.purchased_at).toLocaleDateString()}</td>
+                    </tr>
+                `).join('');
+            } catch (err) {
+                console.error('Load orders error:', err);
+            }
+        }
+
+        function clearFilters() {
+            document.getElementById('filter-status').value = '';
+            document.getElementById('filter-from').value = '';
+            document.getElementById('filter-to').value = '';
+            loadOrders();
+        }
+
+        function exportOrdersCSV() {
+            if (ordersData.length === 0) return alert('No data to export');
+            const csvData = ordersData.map(o => ({
+                'Order ID': o.id,
+                User: o.user_name,
+                Email: o.user_email,
+                Book: o.book_title,
+                Amount: o.amount_paid,
+                Status: o.status,
+                'Payment ID': o.payment_id || '',
+                Date: new Date(o.purchased_at).toLocaleDateString()
+            }));
+            exportCSV(csvData, 'arcanum_orders.csv');
+        }
+
+        loadOrders();
+    </script>
+</body>
+</html>

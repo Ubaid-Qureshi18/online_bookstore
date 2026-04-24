@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Users — Arcanum Admin</title>
+    <link rel="stylesheet" href="../css/admin.css">
+</head>
+<body>
+    <div class="admin-layout">
+        <div id="sidebar"></div>
+        <div class="admin-main">
+            <div class="admin-topbar">
+                <div>
+                    <h1>Users</h1>
+                    <span class="breadcrumb">Admin / Management / Users</span>
+                </div>
+                <button class="btn-admin" onclick="exportUsersCSV()">
+                    <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    Export CSV
+                </button>
+            </div>
+            <div class="admin-content">
+                <div class="panel">
+                    <div class="panel-header">
+                        <h2>Registered Users (<span id="user-count">0</span>)</h2>
+                    </div>
+                    <div class="panel-body" style="padding:0;overflow-x:auto;">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>User</th>
+                                    <th>Email</th>
+                                    <th>Registered</th>
+                                    <th>Total Spent</th>
+                                    <th>Books</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="users-table-body">
+                                <tr><td colspan="6" style="text-align:center;padding:2rem;color:#8B8F9A;">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- User Orders Panel (hidden) -->
+                <div class="panel" id="user-orders-panel" style="display:none;">
+                    <div class="panel-header">
+                        <h2 id="user-orders-title">Order History</h2>
+                        <button class="btn-admin" onclick="document.getElementById('user-orders-panel').style.display='none'">Close</button>
+                    </div>
+                    <div class="panel-body" style="padding:0;overflow-x:auto;">
+                        <table class="data-table">
+                            <thead>
+                                <tr><th>Order ID</th><th>Book</th><th>Amount</th><th>Status</th><th>Date</th></tr>
+                            </thead>
+                            <tbody id="user-orders-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/admin.js"></script>
+    <script>
+        checkAdminAuth();
+        document.getElementById('sidebar').innerHTML = renderSidebar('users');
+
+        let usersData = [];
+
+        async function loadUsers() {
+            try {
+                const data = await adminFetch('/admin/users');
+                usersData = data.users;
+                document.getElementById('user-count').textContent = data.users.length;
+
+                const tbody = document.getElementById('users-table-body');
+                if (data.users.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:2rem;color:#8B8F9A;">No users yet</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = data.users.map(u => `
+                    <tr>
+                        <td>
+                            <div class="user-cell">
+                                <div class="avatar">${getInitials(u.name)}</div>
+                                <div>
+                                    <strong>${u.name}</strong>
+                                </div>
+                            </div>
+                        </td>
+                        <td>${u.email}</td>
+                        <td>${new Date(u.created_at).toLocaleDateString()}</td>
+                        <td>${formatINR(u.total_spent || 0)}</td>
+                        <td>${u.books_purchased || 0}</td>
+                        <td>
+                            <button class="btn-admin" onclick="viewUserOrders(${u.id}, '${u.name.replace(/'/g, "\\'")}')" style="font-size:0.72rem;">View Orders</button>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (err) {
+                console.error('Load users error:', err);
+            }
+        }
+
+        async function viewUserOrders(userId, userName) {
+            try {
+                const data = await adminFetch(`/admin/users/${userId}/orders`);
+                document.getElementById('user-orders-title').textContent = `${userName}'s Orders`;
+
+                const tbody = document.getElementById('user-orders-body');
+                if (data.orders.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:2rem;color:#8B8F9A;">No orders</td></tr>';
+                } else {
+                    tbody.innerHTML = data.orders.map(o => `
+                        <tr>
+                            <td>#${o.id}</td>
+                            <td>${o.book_title}</td>
+                            <td>${formatINR(o.amount_paid)}</td>
+                            <td>${getStatusBadge(o.status)}</td>
+                            <td>${new Date(o.purchased_at).toLocaleDateString()}</td>
+                        </tr>
+                    `).join('');
+                }
+
+                document.getElementById('user-orders-panel').style.display = 'block';
+                document.getElementById('user-orders-panel').scrollIntoView({ behavior: 'smooth' });
+            } catch (err) {
+                alert('Failed to load orders: ' + err.message);
+            }
+        }
+
+        function exportUsersCSV() {
+            if (usersData.length === 0) return alert('No data to export');
+            const csvData = usersData.map(u => ({
+                Name: u.name,
+                Email: u.email,
+                Registered: new Date(u.created_at).toLocaleDateString(),
+                'Total Spent': u.total_spent || 0,
+                'Books Purchased': u.books_purchased || 0
+            }));
+            exportCSV(csvData, 'arcanum_users.csv');
+        }
+
+        loadUsers();
+    </script>
+</body>
+</html>

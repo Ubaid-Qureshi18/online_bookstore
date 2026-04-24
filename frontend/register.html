@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Account — Arcanum</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body data-page="register">
+
+    <!-- ═══ NAVBAR ═══ -->
+    <nav class="navbar">
+        <div class="container">
+            <a href="index.html" class="logo">ARCANUM</a>
+            <div class="nav-links">
+                <a href="index.html">Home</a>
+                <a href="books.html">Catalog</a>
+                <a href="login.html">Sign In</a>
+            </div>
+            <button class="nav-toggle" aria-label="Toggle navigation">
+                <span></span><span></span><span></span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- ═══ AUTH FORM ═══ -->
+    <main class="auth-page">
+        <div class="auth-card">
+            <div style="text-align:center; margin-bottom: 2rem;">
+                <a href="index.html" class="logo" style="font-size: 1.3rem;">ARCANUM</a>
+            </div>
+            <h1>Join Arcanum</h1>
+            <p class="auth-sub">Create your account to begin acquiring rare texts</p>
+
+            <div id="register-error" style="display:none; background:#8B2E2E11; color:#8B2E2E; padding:0.7rem 1rem; margin-bottom:1rem; font-size:0.85rem; border:1px solid #8B2E2E22;"></div>
+
+            <form id="register-form">
+                <div class="form-group">
+                    <label for="reg-name">Full Name</label>
+                    <input type="text" id="reg-name" placeholder="Dr. Jane Smith" required>
+                </div>
+                <div class="form-group">
+                    <label for="reg-email">Email Address</label>
+                    <input type="email" id="reg-email" placeholder="you@university.edu" required>
+                </div>
+                <div class="form-group">
+                    <label for="reg-password">Password</label>
+                    <input type="password" id="reg-password" placeholder="Minimum 8 characters" minlength="8" required>
+                </div>
+                <div class="form-group">
+                    <label for="reg-confirm">Confirm Password</label>
+                    <input type="password" id="reg-confirm" placeholder="Re-enter your password" minlength="8" required>
+                </div>
+                <button type="submit" class="btn btn-primary auth-submit" id="reg-btn">Create Account</button>
+            </form>
+
+            <p class="auth-footer">
+                Already have an account? <a href="login.html">Sign in</a>
+            </p>
+        </div>
+    </main>
+
+    <script src="js/main.js"></script>
+    <script>
+        document.getElementById('register-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const errorEl = document.getElementById('register-error');
+            const btn = document.getElementById('reg-btn');
+
+            const name = document.getElementById('reg-name').value;
+            const email = document.getElementById('reg-email').value;
+            const password = document.getElementById('reg-password').value;
+            const confirm = document.getElementById('reg-confirm').value;
+
+            errorEl.style.display = 'none';
+
+            if (password !== confirm) {
+                errorEl.textContent = 'Passwords do not match';
+                errorEl.style.display = 'block';
+                return;
+            }
+
+            btn.textContent = 'Creating account...';
+            btn.disabled = true;
+
+            try {
+                const res = await fetch(API_BASE + '/auth/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, email, password })
+                });
+                const data = await res.json();
+
+                if (!res.ok) {
+                    throw new Error(data.error || 'Registration failed');
+                }
+
+                localStorage.setItem('arcanum_token', data.token);
+                localStorage.setItem('arcanum_user', JSON.stringify(data.user));
+
+                showToast('Account created successfully');
+                setTimeout(() => window.location.href = 'library.html', 800);
+            } catch (err) {
+                errorEl.textContent = err.message;
+                errorEl.style.display = 'block';
+                btn.textContent = 'Create Account';
+                btn.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>
